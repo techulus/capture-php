@@ -2,6 +2,8 @@
 
 # Capture PHP
 
+Get your API Key and Secret from https://capture.techulus.in/console
+
 ```php
 <?php
 $API_URL = 'https://cdn.capture.techulus.in/';
