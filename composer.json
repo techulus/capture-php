@@ -1,0 +1,32 @@
+{
+    "name": "techulus/capture",
+    "description": "Official PHP SDK for Capture (capture.page). Capture screenshots, generate PDFs, extract content and metadata from web pages.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["capture", "screenshot", "pdf", "web scraping", "content extraction"],
+    "homepage": "https://capture.page",
+    "authors": [
+        {
+            "name": "Capture Team",
+            "email": "support@capture.page"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "ext-curl": "*",
+        "ext-json": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Techulus\\Capture\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Techulus\\Capture\\Tests\\": "tests/"
+        }
+    }
+}
