@@ -128,13 +128,13 @@ file_put_contents('animation.gif', $gifData);
 ### Browser Sessions
 
 ```php
-$session = $client->createSession(['maxTtlSeconds' => 300]);
+$session = $client->sessions()->create(['maxTtlSeconds' => 300]);
 $sessionId = $session['session']['id'];
 
-$client->executeAction($sessionId, 'goto', ['url' => 'https://example.com']);
-$screenshot = $client->executeAction($sessionId, 'screenshot', ['fullPage' => true]);
+$client->sessions()->action($sessionId, 'goto', ['url' => 'https://example.com']);
+$screenshot = $client->sessions()->action($sessionId, 'screenshot', ['fullPage' => true]);
 
-$client->closeSession($sessionId);
+$client->sessions()->close($sessionId);
 ```
 
 ## Configuration Options

@@ -6,6 +6,7 @@ namespace Techulus\Capture\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Techulus\Capture\Capture;
+use Techulus\Capture\CaptureSessions;
 use Techulus\Capture\CaptureSessionsException;
 
 class CaptureTest extends TestCase
@@ -218,28 +219,28 @@ class CaptureTest extends TestCase
     public function testSessionsBearerTokenUsesKeyAndSecret(): void
     {
         $client = new Capture('user_123', 'secret');
-        $method = new \ReflectionMethod(Capture::class, 'sessionsBearerToken');
+        $method = new \ReflectionMethod(CaptureSessions::class, 'sessionsBearerToken');
 
-        $this->assertEquals('dXNlcl8xMjM6c2VjcmV0', $method->invoke($client));
+        $this->assertEquals('dXNlcl8xMjM6c2VjcmV0', $method->invoke($client->sessions()));
     }
 
     public function testSessionUrlUsesEdgeUrl(): void
     {
         $client = new Capture('user_123', 'secret');
-        $method = new \ReflectionMethod(Capture::class, 'sessionUrl');
+        $method = new \ReflectionMethod(CaptureSessions::class, 'sessionUrl');
 
         $this->assertEquals(
             'https://edge.capture.page/v1/sessions/sess_123/actions',
-            $method->invoke($client, '/sess_123/actions'),
+            $method->invoke($client->sessions(), '/sess_123/actions'),
         );
     }
 
     public function testSessionIdEscaping(): void
     {
         $client = new Capture('user_123', 'secret');
-        $method = new \ReflectionMethod(Capture::class, 'escapeSessionId');
+        $method = new \ReflectionMethod(CaptureSessions::class, 'escapeSessionId');
 
-        $this->assertEquals('sess_123%2Fchild', $method->invoke($client, 'sess_123/child'));
+        $this->assertEquals('sess_123%2Fchild', $method->invoke($client->sessions(), 'sess_123/child'));
     }
 
     public function testCaptureSessionsExceptionUsesApiErrorMessage(): void
@@ -269,11 +270,11 @@ class CaptureTest extends TestCase
         $sessionId = null;
 
         try {
-            $created = $client->createSession(['maxTtlSeconds' => 300]);
+            $created = $client->sessions()->create(['maxTtlSeconds' => 300]);
             $sessionId = $created['session']['id'];
 
-            $client->executeAction($sessionId, 'goto', ['url' => 'https://example.com']);
-            $screenshot = $client->executeAction($sessionId, 'screenshot', ['fullPage' => true]);
+            $client->sessions()->action($sessionId, 'goto', ['url' => 'https://example.com']);
+            $screenshot = $client->sessions()->action($sessionId, 'screenshot', ['fullPage' => true]);
 
             $result = $screenshot['result'] ?? $screenshot;
             if (isset($result['screenshot']) && is_array($result['screenshot'])) {
@@ -288,7 +289,7 @@ class CaptureTest extends TestCase
             $this->assertNotSame('', $bodyBase64);
         } finally {
             if (is_string($sessionId) && $sessionId !== '') {
-                $client->closeSession($sessionId);
+                $client->sessions()->close($sessionId);
             }
         }
     }

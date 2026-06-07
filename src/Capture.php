@@ -4,36 +4,6 @@ declare(strict_types=1);
 
 namespace Techulus\Capture;
 
-class CaptureSessionsException extends \RuntimeException
-{
-    /**
-     * @param array<string, mixed> $body
-     */
-    public function __construct(
-        private readonly int $statusCode,
-        private readonly array $body,
-    ) {
-        $message = isset($body['error']) && is_string($body['error'])
-            ? $body['error']
-            : "Capture Sessions API request failed with status {$statusCode}";
-
-        parent::__construct($message, $statusCode);
-    }
-
-    public function getStatusCode(): int
-    {
-        return $this->statusCode;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function getBody(): array
-    {
-        return $this->body;
-    }
-}
-
 class Capture
 {
     private const API_URL = 'https://cdn.capture.page';
@@ -41,6 +11,7 @@ class Capture
 
     private bool $useEdge;
     private int $timeout;
+    private CaptureSessions $sessions;
 
     public function __construct(
         private readonly string $key,
@@ -53,6 +24,7 @@ class Capture
 
         $this->useEdge = $this->normalizeBooleanOption($options['useEdge'] ?? false, 'useEdge');
         $this->timeout = $this->normalizeTimeout($options['timeout'] ?? 30);
+        $this->sessions = new CaptureSessions($this->key, $this->secret, $this->timeout);
     }
 
     public function buildImageUrl(string $url, array $options = []): string
@@ -113,42 +85,9 @@ class Capture
         return $this->httpGet($this->buildAnimatedUrl($url, $options));
     }
 
-    /**
-     * @param array<string, mixed> $options
-     * @return array<string, mixed>
-     */
-    public function createSession(array $options = []): array
+    public function sessions(): CaptureSessions
     {
-        return $this->sessionsRequest('', 'POST', $options);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function getSession(string $sessionId): array
-    {
-        return $this->sessionsRequest('/' . $this->escapeSessionId($sessionId), 'GET');
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function closeSession(string $sessionId): array
-    {
-        return $this->sessionsRequest('/' . $this->escapeSessionId($sessionId), 'DELETE');
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     * @return array<string, mixed>
-     */
-    public function executeAction(string $sessionId, string $type, array $payload = []): array
-    {
-        return $this->sessionsRequest(
-            '/' . $this->escapeSessionId($sessionId) . '/actions',
-            'POST',
-            ['type' => $type, 'payload' => $payload],
-        );
+        return $this->sessions;
     }
 
     private function buildUrl(string $url, string $requestType, array $options): string
@@ -256,7 +195,6 @@ class Capture
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
-        curl_close($ch);
 
         if ($response === false) {
             throw new \RuntimeException("HTTP request failed: {$error}");
@@ -267,84 +205,5 @@ class Capture
         }
 
         return $response;
-    }
-
-    private function sessionsBearerToken(): string
-    {
-        return base64_encode($this->key . ':' . $this->secret);
-    }
-
-    private function sessionUrl(string $path = ''): string
-    {
-        return self::EDGE_URL . '/v1/sessions' . $path;
-    }
-
-    /**
-     * @param array<string, mixed>|null $body
-     * @return array<string, mixed>
-     */
-    private function sessionsRequest(string $path, string $method, ?array $body = null): array
-    {
-        $headers = ['Authorization: Bearer ' . $this->sessionsBearerToken()];
-        $payload = null;
-
-        if ($body !== null) {
-            $payload = json_encode($body, JSON_THROW_ON_ERROR);
-            $headers[] = 'Content-Type: application/json';
-        }
-
-        $response = $this->httpRequest($this->sessionUrl($path), $method, $headers, $payload);
-        $decoded = $response['body'] === ''
-            ? []
-            : json_decode($response['body'], true, 512, JSON_THROW_ON_ERROR);
-
-        if (!is_array($decoded)) {
-            $decoded = [];
-        }
-
-        if ($response['statusCode'] < 200 || $response['statusCode'] >= 300) {
-            throw new CaptureSessionsException($response['statusCode'], $decoded);
-        }
-
-        return $decoded;
-    }
-
-    /**
-     * @param list<string> $headers
-     * @return array{statusCode: int, body: string}
-     */
-    private function httpRequest(string $url, string $method, array $headers = [], ?string $body = null): array
-    {
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => $this->timeout,
-            CURLOPT_CUSTOMREQUEST => $method,
-            CURLOPT_HTTPHEADER => $headers,
-        ]);
-
-        if ($body !== null) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-        }
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        if ($response === false) {
-            throw new \RuntimeException("HTTP request failed: {$error}");
-        }
-
-        return ['statusCode' => $httpCode, 'body' => $response];
-    }
-
-    private function escapeSessionId(string $sessionId): string
-    {
-        if ($sessionId === '') {
-            throw new \InvalidArgumentException('sessionId is required');
-        }
-
-        return rawurlencode($sessionId);
     }
 }
