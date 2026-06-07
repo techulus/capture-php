@@ -26,6 +26,7 @@ echo $imageUrl;
 - **Content Extraction**: Extract HTML and text content from web pages
 - **Metadata Extraction**: Get page metadata (title, description, og tags, etc.)
 - **Animated GIFs**: Create animated GIFs of page interactions
+- **Browser Sessions**: Create stateful browser sessions and run actions
 - **Zero Dependencies**: Uses only PHP built-in extensions (curl, json)
 
 ## Usage
@@ -122,6 +123,18 @@ print_r($metadata['metadata']);
 ```php
 $gifData = $client->fetchAnimated('https://example.com');
 file_put_contents('animation.gif', $gifData);
+```
+
+### Browser Sessions
+
+```php
+$session = $client->createSession(['maxTtlSeconds' => 300]);
+$sessionId = $session['session']['id'];
+
+$client->executeAction($sessionId, 'goto', ['url' => 'https://example.com']);
+$screenshot = $client->executeAction($sessionId, 'screenshot', ['fullPage' => true]);
+
+$client->closeSession($sessionId);
 ```
 
 ## Configuration Options

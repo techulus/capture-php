@@ -6,6 +6,7 @@ namespace Techulus\Capture\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Techulus\Capture\Capture;
+use Techulus\Capture\CaptureSessionsException;
 
 class CaptureTest extends TestCase
 {
@@ -212,5 +213,83 @@ class CaptureTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Option "devices" must be a scalar, stringable value, or null.');
         $client->buildImageUrl('https://example.com', ['devices' => ['desktop', 'mobile']]);
+    }
+
+    public function testSessionsBearerTokenUsesKeyAndSecret(): void
+    {
+        $client = new Capture('user_123', 'secret');
+        $method = new \ReflectionMethod(Capture::class, 'sessionsBearerToken');
+
+        $this->assertEquals('dXNlcl8xMjM6c2VjcmV0', $method->invoke($client));
+    }
+
+    public function testSessionUrlUsesEdgeUrl(): void
+    {
+        $client = new Capture('user_123', 'secret');
+        $method = new \ReflectionMethod(Capture::class, 'sessionUrl');
+
+        $this->assertEquals(
+            'https://edge.capture.page/v1/sessions/sess_123/actions',
+            $method->invoke($client, '/sess_123/actions'),
+        );
+    }
+
+    public function testSessionIdEscaping(): void
+    {
+        $client = new Capture('user_123', 'secret');
+        $method = new \ReflectionMethod(Capture::class, 'escapeSessionId');
+
+        $this->assertEquals('sess_123%2Fchild', $method->invoke($client, 'sess_123/child'));
+    }
+
+    public function testCaptureSessionsExceptionUsesApiErrorMessage(): void
+    {
+        $exception = new CaptureSessionsException(404, [
+            'success' => false,
+            'error' => 'Session not found',
+        ]);
+
+        $this->assertEquals(404, $exception->getStatusCode());
+        $this->assertEquals(['success' => false, 'error' => 'Session not found'], $exception->getBody());
+        $this->assertEquals('Session not found', $exception->getMessage());
+    }
+
+    public function testLiveSessionScreenshotExampleDotCom(): void
+    {
+        $key = getenv('CAPTURE_API_KEY') ?: '';
+        $secret = getenv('CAPTURE_API_SECRET') ?: '';
+
+        if (getenv('CAPTURE_LIVE_SESSIONS') !== '1' || $key === '' || $secret === '') {
+            $this->markTestSkipped(
+                'Live sessions test requires CAPTURE_LIVE_SESSIONS=1, CAPTURE_API_KEY, and CAPTURE_API_SECRET',
+            );
+        }
+
+        $client = new Capture($key, $secret);
+        $sessionId = null;
+
+        try {
+            $created = $client->createSession(['maxTtlSeconds' => 300]);
+            $sessionId = $created['session']['id'];
+
+            $client->executeAction($sessionId, 'goto', ['url' => 'https://example.com']);
+            $screenshot = $client->executeAction($sessionId, 'screenshot', ['fullPage' => true]);
+
+            $result = $screenshot['result'] ?? $screenshot;
+            if (isset($result['screenshot']) && is_array($result['screenshot'])) {
+                $result = $result['screenshot'];
+            }
+
+            $contentType = $result['contentType'] ?? $result['mimeType'] ?? null;
+            $bodyBase64 = $result['bodyBase64'] ?? $result['base64'] ?? null;
+
+            $this->assertSame('image/png', $contentType);
+            $this->assertIsString($bodyBase64);
+            $this->assertNotSame('', $bodyBase64);
+        } finally {
+            if (is_string($sessionId) && $sessionId !== '') {
+                $client->closeSession($sessionId);
+            }
+        }
     }
 }
