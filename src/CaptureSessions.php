@@ -16,7 +16,8 @@ class CaptureSessions
     }
 
     /**
-     * @param array<string, mixed> $options
+     * @param array<string, mixed> $options Browser session options,
+     *     for example ['maxTtlSeconds' => 300, 'cdp' => true].
      * @return array<string, mixed>
      */
     public function create(array $options = []): array

@@ -137,6 +137,28 @@ $screenshot = $client->sessions()->action($sessionId, 'screenshot', ['fullPage' 
 $client->sessions()->close($sessionId);
 ```
 
+### CDP Sessions
+
+To create a session with a Chrome DevTools Protocol (CDP) connection, pass
+`['cdp' => true]` when creating the browser session. The response includes a
+connection URL on the returned session object:
+
+```php
+$created = $client->sessions()->create([
+    'maxTtlSeconds' => 300,
+    'cdp' => true,
+]);
+
+$session = $created['session'];
+$connectUrl = $session['connectUrl'];
+
+echo $connectUrl;
+
+$client->sessions()->close($session['id']);
+```
+
+CDP sessions cannot be combined with `proxy` or `bypassBotDetection` options.
+
 ## Configuration Options
 
 ### Constructor Options
